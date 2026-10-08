@@ -1,6 +1,6 @@
 # password-strength-checker
 
-A python program that evluates the strengths of different passwords provided through input
+A python program that evaluates the strengths of different passwords provided through input
 
 ## Features
 
