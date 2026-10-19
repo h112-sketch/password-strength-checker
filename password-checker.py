@@ -5,8 +5,8 @@ import datetime
 import math
 
 def check_password_strength(original_password):
-    guesses = calculate_guesses(original_password)
-    print(guesses)
+    entropy = calculate_entropy_bits(original_password)
+    print(entropy)
     password = original_password.lower()
     print("Checking password strength...")
     check_common_words_result = check_common_words(password)
@@ -14,9 +14,13 @@ def check_password_strength(original_password):
     check_years_result = check_years(password)
     keyboard_patterns_result = keyboard_patterns(password)
     check_repeated_characters_result = check_repeated_characters(password)
+    print(check_common_words_result)
+    print(check_years_result)
+    print(keyboard_patterns_result)
+    print(check_repeated_characters_result)
 
-def calculate_guesses(password):
-    # Calculate the number of guesses based on the character set size and password length
+def calculate_entropy_bits(password):
+    # Calculate the entropy bits of the password based on its length and character set size
     character_set_size = calculate_character_set_size(password)
     if character_set_size == 0:
         return 0
@@ -38,22 +42,55 @@ def calculate_character_set_size(password):
     return character_set_size   
 
 # Function to check if the password contains any common words
+# Function to check if the password contains any common words
 def check_common_words(password):
     # Opens the common-words.txt file
-    with open ("common-words.txt", "r") as f:
-        # Reads the common_words.txt file and splits it into a list of words
+    with open("common-words.txt", "r") as f:
+        # Reads the file and splits it into a list of words
         common_words = f.read().splitlines()
-        # Loops through each word in the common_words list
-        number_of_hits = 0
-        hits = []
-        for word in common_words:
-            # Checks if the word is in the password and returns an appropriate response
-            if word in password:
-                number_of_hits += 1
-                hits.append(word)
+
+    # Initialises the number of hits and the list of hits
+    number_of_hits = 0
+    hits = []
+
+    # Loops through each word in the common_words list
+    for word in common_words:
+        # Finds the starting position of the word in the password
+        startPos = password.find(word)
+
+        # Checks whether the word was found
+        if startPos != -1:
+            number_of_hits += 1
+
+            # Calculates where the word ends
+            endPos = startPos + len(word)
+
+            # Stores the word and its positions
+            hits.append({
+                "word": word,
+                "start": startPos,
+                "end": endPos
+            })
+
+    # Returns the results if any common words were found
     if number_of_hits > 0:
-        return {"flagged": True, "type": "common_words", "result": number_of_hits, "message": f"Password contains common words: {number_of_hits} ({', '.join(hits)})"}
-    return {"flagged": False, "type": "common_words", "message": "Password does not contain any common words."}
+        return {
+            "flagged": True,
+            "type": "common_words",
+            "matches": hits,
+            "result": number_of_hits,
+            "message": f"Password contains {number_of_hits} common word(s): "
+                       f"{', '.join(hit['word'] for hit in hits)}"
+        }
+
+    # Returns the results if no common words were found
+    return {
+        "flagged": False,
+        "type": "common_words",
+        "matches": [],
+        "result": 0,
+        "message": "Password does not contain any common words."
+    }
 
 # Function to check if the password contains any sequences of 4 or more consecutive years
 def check_years(password):
