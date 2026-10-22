@@ -4,20 +4,55 @@ import argparse
 import datetime
 import math
 
+costs = {
+    "years" : 7,
+    "common_words" : 13.3,
+    "keyboard_patterns" : 6,
+    "repeated_characters" : 6.6
+}
+
+
 def check_password_strength(original_password):
     entropy = calculate_entropy_bits(original_password)
-    print(entropy)
+    all_Matches = []
     password = original_password.lower()
-    print("Checking password strength...")
-    check_common_words_result = check_common_words(password)
 
+    check_common_words_result = check_common_words(password)
     check_years_result = check_years(password)
     keyboard_patterns_result = keyboard_patterns(password)
     check_repeated_characters_result = check_repeated_characters(password)
-    print(check_common_words_result)
-    print(check_years_result)
-    print(keyboard_patterns_result)
-    print(check_repeated_characters_result)
+
+
+    for result in [check_common_words_result, check_years_result, keyboard_patterns_result, check_repeated_characters_result]:
+        all_Matches.extend(result["matches"])
+        for match in result["matches"]:
+            match["type"] = result["type"]
+
+    all_Matches.sort(reverse=True, key=lambda x: x["end"] - x["start"])
+
+    claimed_positions = set()
+    totalCost = 0
+    for match in all_Matches:
+        if any(pos in claimed_positions for pos in range(match["start"], match["end"])):
+            continue
+        claimed_positions.update(range(match["start"], match["end"]))
+        totalCost += costs[match["type"]]
+
+
+    leftOverString = ""
+    for i in range(len(original_password)):
+        if i not in claimed_positions:
+            leftOverString += original_password[i]
+
+    leftover_bits = calculate_entropy_bits(leftOverString)
+    final_bits = totalCost + leftover_bits
+
+    print("Leftover string:", leftOverString)
+    print("Naive entropy (whole password as random):", round(entropy, 1), "bits")
+    print("Pattern cost:", totalCost, "bits")
+    print("Leftover bits:", round(leftover_bits, 1), "bits")
+    print("Final estimate:", round(final_bits, 1), "bits")
+
 
 def calculate_entropy_bits(password):
     # Calculate the entropy bits of the password based on its length and character set size
@@ -41,7 +76,6 @@ def calculate_character_set_size(password):
         character_set_size += 33
     return character_set_size   
 
-# Function to check if the password contains any common words
 # Function to check if the password contains any common words
 def check_common_words(password):
     # Opens the common-words.txt file
@@ -111,41 +145,57 @@ def check_years(password):
                 string += password[current_position + i]
                 
         current_position += 1
-        groups.append(string)
+        groups.append({"year": string, "start": current_position - 1, "end": current_position + 3})
 
     # Loop through the groups list and check if any of the groups are a year between 1900 and the current year
     for group in groups:
         # Check if the group is a digit and if it is between 1900 and the current year
-        if group.isdigit() and 1900 <= int(group) <= datetime.datetime.now().year:
+        if group["year"].isdigit() and 1900 <= int(group["year"]) <= datetime.datetime.now().year:
             number_of_hits += 1
             hits.append(group)
     if number_of_hits > 0:
-        return {"flagged": True, "type": "years", "result": number_of_hits, "message": f"Password contains years: {number_of_hits} ({', '.join(hits)})"}
-    return {"flagged": False, "type": "years", "message": "Password does not contain any years."}
+        return {"flagged": True,
+                 "type": "years",
+                   "result": number_of_hits,
+                   "matches": hits,
+                     "message": f"Password contains years: {number_of_hits} " f"{', '.join(hit['year'] for hit in hits)}"}
+    return {"flagged": False,
+             "type": "years", 
+             "result": 0,
+             "matches": [],
+             "message": "Password does not contain any years."}
 
 def keyboard_patterns(password):
     # Define a list of common keyboard patterns
-    keyboard = ["qwerty", "asdfghjkl", "qwertyuiop", "zxcvbnm", "1234567890", "!@#$%^&*()"]
+    keyboard = [ "asdfghjkl", "qwertyuiop", "zxcvbnm", "1234567890", "!@#$%^&*()"]
     chunks = []
     # Loop through the password and create chunks of 4 characters
-    for chunk in range(len(password) - 3):
+    for i in range(len(password) - 3):
         # Create a substring of 4 characters from the password
-        substring = password[chunk:chunk + 4]
+        substring = password[i:i + 4]
         # Append the substring to the chunks list
-        chunks.append(substring)
+        chunks.append({"chunk": substring, "start": i, "end": i + 4})
     # Loop through the keyboard patterns and check if any of the chunks are in the patterns
-    numberOfHits = 0
+    number_of_hits = 0
     hits = []
     for pattern in keyboard:
         #  Loop through the chunks and check if any of the chunks are in the pattern or if the reverse of the chunk is in the pattern
         for chunk in chunks:
             # Check if the chunk is in the pattern or if the reverse of the chunk is in the pattern
-            if chunk in pattern or chunk[::-1] in pattern:
+            if chunk["chunk"] in pattern or chunk["chunk"][::-1] in pattern:
                 hits.append(chunk)
-                numberOfHits += 1
-    if numberOfHits > 0:
-        return {"flagged": True, "type": "keyboard_patterns", "result": numberOfHits, "message": f"Password contains keyboard patterns: {numberOfHits} ({', '.join(hits)})"}
-    return {"flagged": False, "type": "keyboard_patterns", "message": "Password does not contain keyboard patterns."}
+                number_of_hits += 1
+    if number_of_hits > 0:
+        return {"flagged": True, 
+                "type": "keyboard_patterns",
+                  "result": number_of_hits,
+                   "matches": hits,
+                     "message": f"Password contains keyboard patterns: {number_of_hits}" f" {', '.join(hit['chunk'] for hit in hits)}"}
+    return {"flagged": False, 
+            "type": "keyboard_patterns", 
+            "result": 0,
+            "matches": [],
+            "message": "Password does not contain keyboard patterns."}
 
 def check_repeated_characters(password):
     # Check for repeated characters
@@ -155,12 +205,20 @@ def check_repeated_characters(password):
         # Check if the current character is the same as the next two characters
         if password[i] == password[i+1] and password[i] == password[i+2]:
             # If a repeated character is found, return a dictionary with the flagged status, type, character, and message
-            ch = password[i]
+            ch = {"character": password[i], "start": i, "end": i+3}
             number_of_hits += 1
             hits.append(ch)
     if number_of_hits > 0:
-        return {"flagged": True, "type": "repeated_characters", "result": number_of_hits, "message": f"Password contains repeated characters: {number_of_hits} ({', '.join(hits)})"}
-    return {"flagged": False, "type": "repeated_characters", "message": "Password does not contain repeated characters."}
+        return {"flagged": True, 
+                "type": "repeated_characters",
+                  "result": number_of_hits,
+                  "matches": hits,
+                  "message": f"Password contains repeated characters: {number_of_hits} " f"{', '.join(hit['character'] for hit in hits)}"}
+    return {"flagged": False,
+             "type": "repeated_characters",
+               "matches": [],
+               "result": 0,
+                "message": "Password does not contain repeated characters."}
 
 if __name__ == "__main__":
     # Use argparse so people can enter their passwords from the terminal
