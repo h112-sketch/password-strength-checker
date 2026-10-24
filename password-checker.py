@@ -11,6 +11,18 @@ costs = {
     "repeated_characters" : 6.6
 }
 
+attacker_speeds = {
+    "online" : 10, # (guesses per second)
+    "offline" : 10 ** 10 # (guesses per second)
+}
+
+test_passwords = [
+    "password",
+    "monkey1998",
+    "correcthorsebatterystaple",
+    "x7#Kq!9vLm2$"
+]
+
 
 def check_password_strength(original_password):
     entropy = calculate_entropy_bits(original_password)
@@ -47,13 +59,74 @@ def check_password_strength(original_password):
     leftover_bits = calculate_entropy_bits(leftOverString)
     final_bits = totalCost + leftover_bits
 
+    guesses = 2 ** final_bits
+    onlineAttackerSpeed = attacker_speeds["online"] # (guesses per second)
+    offlineAttackerSpeed = attacker_speeds["offline"] # (guesses per second)
+
+    onlineCrackTime = guesses / onlineAttackerSpeed
+    offlineCrackTime = guesses / offlineAttackerSpeed
+
+
+
+        
     print("Leftover string:", leftOverString)
     print("Naive entropy (whole password as random):", round(entropy, 1), "bits")
     print("Pattern cost:", totalCost, "bits")
     print("Leftover bits:", round(leftover_bits, 1), "bits")
     print("Final estimate:", round(final_bits, 1), "bits")
+    print("Estimated guesses:", round(guesses, 1))
 
 
+    print("Estimated online crack time:", turn_to_readable_time(onlineCrackTime))
+    print("Estimated offline crack time:", turn_to_readable_time(offlineCrackTime))
+
+    score, strength = score_password_strength(final_bits)
+    print(f"Password strength score: {score} ({strength})")
+
+
+
+def score_password_strength(final_bits):
+    # Score the password strength based on the final bits of entropy
+    if final_bits < 10:
+        return 0, "Very Weak"
+    elif final_bits < 20:
+        return 1, "Weak"
+    elif final_bits < 27:
+        return 2, "Fair"
+    elif final_bits < 33:
+        return 3, "Good"
+    else:
+        return 4, "Strong"
+
+def turn_to_readable_time(seconds):
+    # Convert seconds to a human-readable format
+    MINUTE = 60
+    HOUR = 60 * MINUTE
+    DAY = 24 * HOUR
+    YEAR = 365 * DAY
+    AGE_OF_UNIVERSE = 13.8e9 * YEAR  # about 13.8 billion years
+
+    if seconds < 1:
+        return "less than a second"
+    elif seconds < MINUTE:
+        return f"{round(seconds, 2)} seconds"
+    elif seconds < HOUR:
+        return f"{round(seconds / MINUTE, 2)} minutes"
+    elif seconds < DAY:
+        return f"{round(seconds / HOUR, 2)} hours"
+    elif seconds < YEAR:
+        return f"{round(seconds / DAY, 2)} days"
+    elif seconds < 1000 * YEAR:
+        return f"{round(seconds / YEAR, 2)} years"
+    elif seconds < 1e6 * YEAR:
+        return f"{round(seconds / (1000 * YEAR), 2)} thousand years"
+    elif seconds < 1e9 * YEAR:
+        return f"{round(seconds / (1e6 * YEAR), 2)} million years"
+    elif seconds < AGE_OF_UNIVERSE:
+        return f"{round(seconds / (1e9 * YEAR), 2)} billion years"
+    else:
+        return "longer than the age of the universe"
+    
 def calculate_entropy_bits(password):
     # Calculate the entropy bits of the password based on its length and character set size
     character_set_size = calculate_character_set_size(password)
