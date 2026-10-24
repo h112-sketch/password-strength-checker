@@ -1,6 +1,6 @@
 import pytest
 
-from password_checker import (
+from main import (
     check_password_strength,
     check_common_words,
     check_years,
