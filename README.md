@@ -19,7 +19,7 @@ To run this program you should have Python version 3 alongside pytest version 9.
 Commands:
 
 ```bash
-git clone https://github.com/h112-sketch/password-strength-checker.git
+git clone https://github.com/haris-221/password-strength-checker.git
 cd password-strength-checker
 pip install pytest   # only needed for running the tests
 ```
