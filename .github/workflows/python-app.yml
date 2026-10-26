@@ -35,7 +35,7 @@ jobs:
 
       - name: Security scan with Bandit
         run: |
-          bandit -r . --exclude ./.git,./tests
+          bandit -r . --exclude ./.git,./test_checker.py
 
       - name: Test with pytest
         run: |
